@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pytz
+apscheduler
+opencv-python-headless
+python-multipart
+numpy
+motor
