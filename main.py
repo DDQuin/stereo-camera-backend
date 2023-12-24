@@ -42,25 +42,25 @@ scheduler.start()
 
 async def takeScreenshot(file1: str, file2: str):
     print("Taking camera photo - mock")
-    imgL = cv.imread(file1, cv.IMREAD_GRAYSCALE)
-    imgR = cv.imread(file2, cv.IMREAD_GRAYSCALE)
-    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
-    disparity = stereo.compute(imgL,imgR)
-    _, buffer = cv.imencode('.jpg', disparity)
-    img_l_text = base64.b64encode(imgL)
-    img_r_text = base64.b64encode(imgR)
-    jpg_as_text = base64.b64encode(buffer)
-    cv.imwrite("images/stereo.png", disparity)
-    new_photo = await add_photo({"brightness": app.params.brightness,
-                "saturation": app.params.saturation,
-                "contrast": app.params.contrast,
-                "timestamp": datetime.datetime.now(),
-                "stereo": jpg_as_text,
-                "left": img_l_text,
-                "right": img_r_text,
-               })
-    return disparity.shape
-
+#    imgL = cv.imread(file1, cv.imread_grayscale)
+#    imgr = cv.imread(file2, cv.imread_grayscale)
+#    stereo = cv.stereobm.create(numdisparities=16, blocksize=15)
+#    disparity = stereo.compute(imgl,imgr)
+#    _, buffer = cv.imencode('.jpg', disparity)
+#    img_l_text = base64.b64encode(imgl)
+#    img_r_text = base64.b64encode(imgr)
+#    jpg_as_text = base64.b64encode(buffer)
+#    cv.imwrite("images/stereo.png", disparity)
+#    new_photo = await add_photo({"brightness": app.params.brightness,
+#                "saturation": app.params.saturation,
+#                "contrast": app.params.contrast,
+#                "timestamp": datetime.datetime.now(),
+#                "stereo": jpg_as_text,
+#                "left": img_l_text,
+#                "right": img_r_text,
+#               })
+#    return disparity.shape
+#
 
 def setSchedule(times: List[str]):
     for job in scheduler.get_jobs():
@@ -143,7 +143,7 @@ async def get_latest_photo() -> Photo:
             brightness=photo['brightness'],
                       saturation=photo['saturation'],
                      contrast=photo['contrast'],
-                     image=str(photo['stereo']),
+                     image=str(photo['stereo'].decode()),
                      timestamp=str(photo['timestamp']))
     raise HTTPException(status_code=404, detail=f'id {id} not found')
 
@@ -187,9 +187,9 @@ async def get_photo_by_id(id: str) -> Photo:
             brightness=photo['brightness'],
                       saturation=photo['saturation'],
                      contrast=photo['contrast'],
-                     image=str(photo['stereo']),
-                     left=str(photo['left']),
-                     right=str(photo['right']),
+                     image=str(photo['stereo'].decode()),
+                     left=str(photo['left'].decode()),
+                     right=str(photo['right'].decode()),
                      timestamp=str(photo['timestamp']))
     raise HTTPException(status_code=404, detail=f'id {id} not found')
 
@@ -204,7 +204,7 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
             brightness=photo['brightness'],
                       saturation=photo['saturation'],
                      contrast=photo['contrast'],
-                     image=str(photo['stereo']),
+                     image=str(photo['stereo'].decode()),
                      timestamp=str(photo['timestamp'])))
     return photos
 
