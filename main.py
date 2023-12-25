@@ -7,6 +7,8 @@ from pytz import utc
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from database import (
     add_photo,
     retrieve_photo,
@@ -29,38 +31,43 @@ jobstores = {
     'default': MemoryJobStore()
 }
 executors = {
-    'default': ThreadPoolExecutor(20),
-    'processpool': ProcessPoolExecutor(5)
+    'default': AsyncIOExecutor()
 }
 job_defaults = {
     'coalesce': False,
     'max_instances': 3
 }
-scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
+scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
 scheduler.start()
 
 
 async def takeScreenshot(file1: str, file2: str):
     print("Taking camera photo - mock")
-#    imgL = cv.imread(file1, cv.imread_grayscale)
-#    imgr = cv.imread(file2, cv.imread_grayscale)
-#    stereo = cv.stereobm.create(numdisparities=16, blocksize=15)
-#    disparity = stereo.compute(imgl,imgr)
-#    _, buffer = cv.imencode('.jpg', disparity)
-#    img_l_text = base64.b64encode(imgl)
-#    img_r_text = base64.b64encode(imgr)
-#    jpg_as_text = base64.b64encode(buffer)
-#    cv.imwrite("images/stereo.png", disparity)
-#    new_photo = await add_photo({"brightness": app.params.brightness,
-#                "saturation": app.params.saturation,
-#                "contrast": app.params.contrast,
-#                "timestamp": datetime.datetime.now(),
-#                "stereo": jpg_as_text,
-#                "left": img_l_text,
-#                "right": img_r_text,
-#               })
-#    return disparity.shape
-#
+    left_f = open(file1, 'rb')
+    right_f = open(file2, 'rb')
+    bytes_image_l = left_f.read()
+    bytes_image_r = right_f.read()
+    img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_GRAYSCALE)
+    img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_GRAYSCALE)
+    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
+    disparity = stereo.compute(img_l,img_r)
+    _, buffer = cv.imencode('.jpg', disparity)
+    img_l_text = base64.b64encode(bytes_image_l)
+    img_r_text = base64.b64encode(bytes_image_r)
+    jpg_as_text = base64.b64encode(buffer)
+    cv.imwrite("images/stereo.png", disparity)
+    new_photo = await add_photo({"brightness": app.params.brightness,
+                "saturation": app.params.saturation,
+                "contrast": app.params.contrast,
+                "timestamp": datetime.datetime.now(),
+                "stereo": jpg_as_text,
+                "left": img_l_text,
+                "right": img_r_text,
+               })
+    left_f.close()
+    right_f.close()
+    return disparity.shape
+
 
 def setSchedule(times: List[str]):
     for job in scheduler.get_jobs():
@@ -130,9 +137,9 @@ def set_params(new_params: CameraParams) -> CameraParams:
     return app.params
 
 @app.get("/take_photo")
-def take_photo():
-    shape = takeScreenshot("images/tsukaba_l.png", "images/tsukaba_r.png")
-    return {"Shape": shape}
+async def take_photo():
+    shape = await takeScreenshot("images/small.jpg", "images/small.jpg")
+    return {"Shape": "sss"}
 
 @app.get("/get_latest_photo")
 async def get_latest_photo() -> Photo:
