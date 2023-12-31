@@ -110,7 +110,7 @@ class Photo(BaseModel):
 
 app = FastAPI()
 
-app.params: CameraParams = CameraParams(brightness=2, saturation=0, contrast=0, schedule=["09:38", "09:39"])
+app.params: CameraParams = CameraParams(brightness=2, saturation=0, contrast=0, schedule=["09:39"])
 setSchedule(app.params.schedule)
 
 
