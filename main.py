@@ -20,9 +20,10 @@ import numpy as np
 import base64
 import re
 import datetime
+import requests
 import os
 
-
+url = "http://localhost:8090/jpg"
 
 ### SCHEDULER SETUP ###
 
@@ -39,6 +40,14 @@ job_defaults = {
 }
 scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
 scheduler.start()
+
+async def captureImage():
+    print("Capturing image from ESP")
+    response = requests.post(url=url, data="2,2,2")
+    if response.status_code == 200:
+        with open("images/stored.jpg", 'wb') as f:
+            f.write(response.content)
+    print(response.headers)
 
 
 async def takeScreenshot(file1: str, file2: str):
@@ -76,7 +85,7 @@ def setSchedule(times: List[str]):
     for time in times:
         print(f'adding schedule {time}')
         hour_min = time.split(":")
-        job = scheduler.add_job(takeScreenshot, 'cron', args=("images/small.jpg", "images/small.jpg"), hour=int(hour_min[0]), minute=int(hour_min[1]))
+        job = scheduler.add_job(captureImage, 'cron', hour=int(hour_min[0]), minute=int(hour_min[1]))
 
 
 ### MODELS ###
@@ -138,7 +147,8 @@ def set_params(new_params: CameraParams) -> CameraParams:
 
 @app.get("/take_photo")
 async def take_photo():
-    shape = await takeScreenshot("images/small.jpg", "images/small.jpg")
+    await captureImage()
+    #shape = await takeScreenshot("images/small.jpg", "images/small.jpg")
     return {"Shape": "sss"}
 
 @app.get("/get_latest_photo")
