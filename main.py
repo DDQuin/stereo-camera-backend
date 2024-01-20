@@ -43,19 +43,11 @@ scheduler.start()
 
 async def captureImage():
     print("Capturing image from ESP")
-    response = requests.post(url=url, data="2,2,2")
-    if response.status_code == 200:
-        with open("images/stored.jpg", 'wb') as f:
-            f.write(response.content)
-    print(response.headers)
-
-
-async def takeScreenshot(file1: str, file2: str):
-    print("Taking camera photo - mock")
-    left_f = open(file1, 'rb')
-    right_f = open(file2, 'rb')
-    bytes_image_l = left_f.read()
-    bytes_image_r = right_f.read()
+    response = requests.post(url=url, data=f"{app.params.saturation},{app.params.contrast},{app.params.brightness}")
+    if response.status_code != 200:
+        raise HTTPException("Something went wrong")
+    bytes_image_l = response.content
+    bytes_image_r = response.content
     img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_GRAYSCALE)
     img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_GRAYSCALE)
     stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
@@ -73,9 +65,9 @@ async def takeScreenshot(file1: str, file2: str):
                 "left": img_l_text,
                 "right": img_r_text,
                })
-    left_f.close()
-    right_f.close()
-    return disparity.shape
+    print(response.headers)
+
+
 
 
 def setSchedule(times: List[str]):
@@ -90,9 +82,9 @@ def setSchedule(times: List[str]):
 
 ### MODELS ###
 class CameraParams(BaseModel):
-    brightness: int = Field(ge = 0, le=99, title="The brightness of the camera")
-    saturation: int = Field(ge = 0, le=99, title="The saturation of the camera")
-    contrast: int = Field(ge = 0, le=99, title="The contrast of the camera")
+    brightness: int = Field(ge = -2, le=2, title="The brightness of the camera")
+    saturation: int = Field(ge = -2, le=2, title="The saturation of the camera")
+    contrast: int = Field(ge = -2, le=2, title="The contrast of the camera")
     schedule: List[str] = Field(title="Schedule of camera")
 
     @field_validator('schedule')
@@ -148,7 +140,6 @@ def set_params(new_params: CameraParams) -> CameraParams:
 @app.get("/take_photo")
 async def take_photo():
     await captureImage()
-    #shape = await takeScreenshot("images/small.jpg", "images/small.jpg")
     return {"Shape": "sss"}
 
 @app.get("/get_latest_photo")
