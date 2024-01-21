@@ -48,8 +48,15 @@ async def captureImage():
         raise HTTPException("Something went wrong")
     bytes_image_l = response.content
     bytes_image_r = response.content
+    await combineAndUploadImages(bytes_image_l, bytes_image_r)
+    print(response.headers)
+
+async def combineAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
     img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_GRAYSCALE)
     img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_GRAYSCALE)
+    if img_l.shape != img_r.shape:
+            raise HTTPException(status_code=400, detail=f'images are not the same dimensions! {img_l.shape} and {img_r.shape}')
+    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
     stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
     disparity = stereo.compute(img_l,img_r)
     _, buffer = cv.imencode('.jpg', disparity)
@@ -65,9 +72,7 @@ async def captureImage():
                 "left": img_l_text,
                 "right": img_r_text,
                })
-    print(response.headers)
-
-
+ 
 
 
 def setSchedule(times: List[str]):
@@ -164,26 +169,7 @@ async def upload_photos(files: list[UploadFile]):
             raise HTTPException(status_code=400, detail=f'File must be image, is currently {file.content_type}')
     bytes_image_l = await files[0].read()
     bytes_image_r = await files[1].read()
-    img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_GRAYSCALE)
-    img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_GRAYSCALE)
-    if img_l.shape != img_r.shape:
-            raise HTTPException(status_code=400, detail=f'images are not the same dimensions! {img_l.shape} and {img_r.shape}')
-    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
-    disparity = stereo.compute(img_l, img_r)
-    _, buffer = cv.imencode('.jpg', disparity)
-    img_l_text = base64.b64encode(bytes_image_l)
-    img_r_text = base64.b64encode(bytes_image_r)
-    jpg_as_text = base64.b64encode(buffer)
-    cv.imwrite("images/output.png", disparity)
-    new_photo = await add_photo({"brightness": app.params.brightness,
-                "saturation": app.params.saturation,
-                "contrast": app.params.contrast,
-                "timestamp": datetime.datetime.now(),
-                "stereo": jpg_as_text,
-                "left": img_l_text,
-                "right": img_r_text,
-               })
-    return {"frame": disparity.shape, "filenames": [file.filename for file in files], "content": [file.content_type for file in files]}
+    await combineAndUploadImages(bytes_image_l, bytes_image_r)
 
 
 
