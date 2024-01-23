@@ -23,8 +23,8 @@ import datetime
 import requests
 import os
 
-url = "http://localhost:8090/jpg"
 
+url = os.getenv("MCC_URL", "http://localhost:8090/jpg")
 ### SCHEDULER SETUP ###
 
 scheduler = BackgroundScheduler()
@@ -202,9 +202,6 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
                      timestamp=str(photo['timestamp'])))
     return photos
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
 
 @app.get("/healthcheck")
 def read_root():
