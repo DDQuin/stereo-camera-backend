@@ -15,6 +15,10 @@ from database import (
     retrieve_photos,
     retrieve_photo_latest,
 )
+from stereo import (
+    stereo_fusion,
+    testStereo,
+)
 import cv2 as cv
 import numpy as np
 import base64
@@ -48,22 +52,21 @@ async def captureImage():
         raise HTTPException("Something went wrong")
     bytes_image_l = response.content
     bytes_image_r = response.content
-    await combineAndUploadImages(bytes_image_l, bytes_image_r)
+    await fuseAndUploadImages(bytes_image_l, bytes_image_r)
     print(response.headers)
 
-async def combineAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
-    img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_GRAYSCALE)
-    img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_GRAYSCALE)
+async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
+    img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_COLOR)
+    img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_COLOR)
     if img_l.shape != img_r.shape:
-            raise HTTPException(status_code=400, detail=f'images are not the same dimensions! {img_l.shape} and {img_r.shape}')
-    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
-    stereo = cv.StereoBM.create(numDisparities=16, blockSize=15)
-    disparity = stereo.compute(img_l,img_r)
-    _, buffer = cv.imencode('.jpg', disparity)
+            raise HTTPException(status_code=400,
+            detail=f'images are not the same dimensions{img_l.shape} and {img_r.shape}')
+    result = stereo_fusion(img_l, img_r)
+    _, buffer = cv.imencode('.jpg', result)
     img_l_text = base64.b64encode(bytes_image_l)
     img_r_text = base64.b64encode(bytes_image_r)
     jpg_as_text = base64.b64encode(buffer)
-    cv.imwrite("images/stereo.png", disparity)
+    cv.imwrite("images/stereo.png", result)
     new_photo = await add_photo({"brightness": app.params.brightness,
                 "saturation": app.params.saturation,
                 "contrast": app.params.contrast,
@@ -166,10 +169,11 @@ async def upload_photos(files: list[UploadFile]):
         raise HTTPException(status_code=400, detail="Must be two files")
     for file in files:
         if "image" not in file.content_type:
-            raise HTTPException(status_code=400, detail=f'File must be image, is currently {file.content_type}')
+            raise HTTPException(status_code=400,
+            detail=f'File must be image, is currently {file.content_type}')
     bytes_image_l = await files[0].read()
     bytes_image_r = await files[1].read()
-    await combineAndUploadImages(bytes_image_l, bytes_image_r)
+    await fuseAndUploadImages(bytes_image_l, bytes_image_r)
 
 
 
@@ -206,3 +210,7 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
 @app.get("/healthcheck")
 def read_root():
     return {"status": "ok"}
+
+@app.get("/test_stereo")
+async def test_stereo():
+    await testStereo()
