@@ -90,7 +90,7 @@ def read_params() -> CameraParams:
 @app.put("/set_parameters", description="Set current parameters")
 def set_params(new_params: CameraParams) -> CameraParams:
     app.params = new_params
-    setSchedule(app.params.schedule)
+    setSchedule(app.params.schedule, captureImage)
     return app.params
 
 @app.get("/take_photo", description="Make MCC capture image")
