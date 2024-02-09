@@ -9,6 +9,21 @@ client = motor.motor_asyncio.AsyncIOMotorClient(mongo)
 database = client.photos
 
 photo_collection = database.get_collection("photos_collection")
+config_collection = database.get_collection("config_collection")
+
+# Retrieve all photos present in the d0atabase
+async def retrieve_config() -> dict:
+    configs = []
+    async for config in config_collection.find():
+        configs.append(config)
+    return configs[0]
+
+async def set_config(config_data: dict):
+    # Deletet config data
+    await config_collection.drop()
+    config = await config_collection.insert_one(config_data)
+    new_config = await config_collection.find_one({"_id": config.inserted_id})
+    return new_config
 
 # Retrieve all photos present in the database
 async def retrieve_photos():

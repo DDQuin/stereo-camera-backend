@@ -6,6 +6,8 @@ from database import (
     retrieve_photo,
     retrieve_photos,
     retrieve_photo_latest,
+    retrieve_config,
+    set_config
 )
 from stereo import (
     stereo_fusion,
@@ -27,6 +29,25 @@ import requests
 import os
 
 ### HELPER FUNCTIONS ###
+
+async def getConfig() -> CameraParams:
+    config = await retrieve_config()
+    configCam = CameraParams(
+        brightness=config['brightness'],
+                  saturation=config['saturation'],
+                 contrast=config['contrast'],
+                 schedule=config['schedule']
+                 )
+    return configCam
+
+async def saveConfig():
+    await set_config({
+        "brightness": app.params.brightness,
+        "saturation": app.params.saturation,
+        "contrast": app.params.contrast,
+        "schedule": app.params.schedule
+    })
+
 
 async def captureImage():
     print("Capturing image from ESP")
@@ -62,15 +83,7 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
 ### APP SETUP ###
     
 url = os.getenv("MCC_URL", "http://localhost:8090/jpg")
-
-startSchedule()
-
 app = FastAPI()
-
-app.params: CameraParams = CameraParams(brightness=2, saturation=0, contrast=0, schedule=["09:39"])
-setSchedule(app.params.schedule, captureImage)
-
-
 origins = ["*"]
 
 app.add_middleware(
@@ -81,16 +94,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event('startup')
+async def app_startup():
+    startSchedule()
+    app.params = await getConfig()
+    setSchedule(app.params.schedule, captureImage)
+
 ### ROUTES ###
 
 @app.get("/parameters", description="Get current parameters")
-def read_params() -> CameraParams:
-    return app.params
+async def read_params() -> CameraParams:
+    return app.params 
 
 @app.put("/set_parameters", description="Set current parameters")
-def set_params(new_params: CameraParams) -> CameraParams:
+async def set_params(new_params: CameraParams) -> CameraParams:
     app.params = new_params
     setSchedule(app.params.schedule, captureImage)
+    await saveConfig()
     return app.params
 
 @app.get("/take_photo", description="Make MCC capture image")
