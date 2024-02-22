@@ -27,6 +27,7 @@ import base64
 import datetime
 import requests
 import os
+import time
 
 ### HELPER FUNCTIONS ###
 
@@ -63,11 +64,14 @@ async def setESPConfig():
 
 async def captureImage():
     print("Capturing image from ESP")
-    response = requests.post(url=f'{url}/capture', data=f"{app.params.saturation},{app.params.contrast},{app.params.brightness}")
-    if response.status_code != 200:
+    #response = requests.post(url=f'{url}/capture', data=f"{app.params.saturation},{app.params.contrast},{app.params.brightness}")
+    response = requests.get(url=f'{url}/cam1')
+    #time.sleep()
+    response2 = requests.get(url=f'{url}/cam2')
+    if response.status_code != 200 or response2.status_code != 200:
         raise HTTPException("Something went wrong")
     bytes_image_l = response.content
-    bytes_image_r = response.content
+    bytes_image_r = response2.content
     await fuseAndUploadImages(bytes_image_l, bytes_image_r)
     print(response.headers)
 
@@ -82,15 +86,17 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
     img_l_text = base64.b64encode(bytes_image_l)
     img_r_text = base64.b64encode(bytes_image_r)
     jpg_as_text = base64.b64encode(buffer)
+    cv.imwrite("images/img_l.png", img_l)
+    cv.imwrite("images/img_r.png", img_r)
     cv.imwrite("images/stereo.png", result)
-    new_photo = await add_photo({"brightness": app.params.brightness,
-                "saturation": app.params.saturation,
-                "contrast": app.params.contrast,
-                "timestamp": datetime.datetime.now(),
-                "stereo": jpg_as_text,
-                "left": img_l_text,
-                "right": img_r_text,
-               })
+    # new_photo = await add_photo({"brightness": app.params.brightness,
+    #             "saturation": app.params.saturation,
+    #             "contrast": app.params.contrast,
+    #             "timestamp": datetime.datetime.now(),
+    #             "stereo": jpg_as_text,
+    #             "left": img_l_text,
+    #             "right": img_r_text,
+    #            })
 
 ### APP SETUP ###
     
