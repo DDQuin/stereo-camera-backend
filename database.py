@@ -19,7 +19,7 @@ async def retrieve_config() -> dict:
     return configs[0]
 
 async def set_config(config_data: dict):
-    # Deletet config data
+    # Delete config data
     await config_collection.drop()
     config = await config_collection.insert_one(config_data)
     new_config = await config_collection.find_one({"_id": config.inserted_id})

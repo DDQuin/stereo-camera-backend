@@ -50,9 +50,6 @@ async def saveConfig():
     })
 
 async def setESPConfig():
-    # response = requests.post(url=url, data=f"
-    #                          {app.params.saturation},{app.params.contrast},{app.params.brightness}
-    #                          ")
     response = requests.post(url=f'{url}/config', json={
         "brightness": app.params.brightness,
         "saturation": app.params.saturation,
@@ -61,21 +58,18 @@ async def setESPConfig():
     if response.status_code != 200:
         raise HTTPException("Something went wrong")
 
-
-async def captureImage():
+async def captureImage() -> Photo:
     print("Capturing image from ESP")
-    #response = requests.post(url=f'{url}/capture', data=f"{app.params.saturation},{app.params.contrast},{app.params.brightness}")
     response = requests.get(url=f'{url}/cam1')
-    #time.sleep()
     response2 = requests.get(url=f'{url}/cam2')
     if response.status_code != 200 or response2.status_code != 200:
         raise HTTPException("Something went wrong")
     bytes_image_l = response.content
     bytes_image_r = response2.content
-    await fuseAndUploadImages(bytes_image_l, bytes_image_r)
-    print(response.headers)
+    captured_photo = await fuseAndUploadImages(bytes_image_l, bytes_image_r)
+    return captured_photo
 
-async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
+async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Photo:
     img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_COLOR)
     img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_COLOR)
     if img_l.shape != img_r.shape:
@@ -89,14 +83,20 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes):
     cv.imwrite("images/img_l.png", img_l)
     cv.imwrite("images/img_r.png", img_r)
     cv.imwrite("images/stereo.png", result)
-    # new_photo = await add_photo({"brightness": app.params.brightness,
-    #             "saturation": app.params.saturation,
-    #             "contrast": app.params.contrast,
-    #             "timestamp": datetime.datetime.now(),
-    #             "stereo": jpg_as_text,
-    #             "left": img_l_text,
-    #             "right": img_r_text,
-    #            })
+    new_photo = await add_photo({"brightness": app.params.brightness,
+                "saturation": app.params.saturation,
+                "contrast": app.params.contrast,
+                "timestamp": datetime.datetime.now(),
+                "stereo": jpg_as_text,
+                "left": img_l_text,
+                "right": img_r_text,
+               })
+    return Photo(id=str(new_photo['_id']),
+            brightness=new_photo['brightness'],
+                      saturation=new_photo['saturation'],
+                     contrast=new_photo['contrast'],
+                     image=str(new_photo['stereo'].decode()),
+                     timestamp=str(new_photo['timestamp']))
 
 ### APP SETUP ###
     
@@ -132,15 +132,14 @@ async def set_params(new_params: CameraParams) -> CameraParams:
     await setESPConfig()
     return app.params
 
-@app.get("/take_photo", description="Make MCC capture image")
-async def take_photo():
-    await captureImage()
-    return {"Shape": "sss"}
+@app.get("/take_photo", description="Make MCC capture image and receive it")
+async def take_photo() -> Photo:
+    captured_photo = await captureImage()
+    return captured_photo
 
 @app.get("/get_latest_photo", description="Return latest photo saved from db")
 async def get_latest_photo() -> Photo:
     photo = await retrieve_photo_latest()
-    
     if photo:
         return Photo(id=str(photo['_id']),
             brightness=photo['brightness'],
@@ -162,8 +161,6 @@ async def upload_photos(files: list[UploadFile]):
     bytes_image_r = await files[1].read()
     await fuseAndUploadImages(bytes_image_l, bytes_image_r)
 
-
-
 @app.get("/photo", description="Get photo from its ID")
 async def get_photo_by_id(id: str) -> Photo:
     photo = await retrieve_photo(id)
@@ -178,7 +175,6 @@ async def get_photo_by_id(id: str) -> Photo:
                      timestamp=str(photo['timestamp']))
     raise HTTPException(status_code=404, detail=f'id {id} not found')
 
-
 @app.get("/photos", description="Get list of photos")
 async def get_photos(offset: int, limit: int) -> List[Photo]:
     photos_dict = await retrieve_photos(offset, limit)
@@ -192,7 +188,6 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
                      image=str(photo['stereo'].decode()),
                      timestamp=str(photo['timestamp'])))
     return photos
-
 
 @app.get("/healthcheck")
 def read_root():
