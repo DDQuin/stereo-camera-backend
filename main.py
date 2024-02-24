@@ -35,9 +35,23 @@ async def getConfig() -> CameraParams:
     config = await retrieve_config()
     configCam = CameraParams(
         brightness=config['brightness'],
-                  saturation=config['saturation'],
-                 contrast=config['contrast'],
-                 schedule=config['schedule']
+        saturation=config['saturation'],
+        contrast=config['contrast'],
+        schedule=config['schedule'],
+        special_effect=config['special_effect'],
+        wb_mode=config['wb_mode'],
+        ae_level=config['ae_level'],
+        aec_value=config['aec_value'],
+        agc_gain=config['agc_gain'],
+        gainceiling=config['gainceiling'],
+        lenc=config['lenc'],
+        agc=config['agc'],
+        aec=config['aec'],
+        hmirror=config['hmirror'],
+        vflip=config['vflip'],
+        aec2=config['aec2'],
+        bpc=config['bpc'],
+        wpc=config['wpc']
                  )
     return configCam
 
@@ -46,6 +60,20 @@ async def saveConfig():
         "brightness": app.params.brightness,
         "saturation": app.params.saturation,
         "contrast": app.params.contrast,
+        "special_effect": app.params.special_effect,
+        "wb_mode": app.params.wb_mode,
+        "ae_level": app.params.ae_level,
+        "aec_value": app.params.aec_value,
+        "agc_gain": app.params.agc_gain,
+        "gainceiling": app.params.gainceiling,
+        "lenc": app.params.lenc,
+        "agc": app.params.agc,
+        "aec": app.params.aec,
+        "hmirror": app.params.hmirror,
+        "vflip": app.params.vflip,
+        "aec2": app.params.aec2,
+        "bpc": app.params.bpc,
+        "wpc": app.params.wpc,
         "schedule": app.params.schedule
     })
 
@@ -54,6 +82,20 @@ async def setESPConfig():
         "brightness": app.params.brightness,
         "saturation": app.params.saturation,
         "contrast": app.params.contrast
+        "special_effect": app.params.special_effect,
+        "wb_mode": app.params.wb_mode,
+        "ae_level": app.params.ae_level,
+        "aec_value": app.params.aec_value,
+        "agc_gain": app.params.agc_gain,
+        "gainceiling": app.params.gainceiling,
+        "lenc": app.params.lenc,
+        "agc": app.params.agc,
+        "aec": app.params.aec,
+        "hmirror": app.params.hmirror,
+        "vflip": app.params.vflip,
+        "aec2": app.params.aec2,
+        "bpc": app.params.bpc,
+        "wpc": app.params.wpc,
         })
     if response.status_code != 200:
         raise HTTPException("Something went wrong")
