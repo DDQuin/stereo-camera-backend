@@ -78,7 +78,8 @@ async def saveConfig():
     })
 
 async def setESPConfig():
-    response = requests.post(url=f'{url}/config', json={
+    try:
+        requests.post(url=f'{url}/config', json={
         "brightness": app.params.brightness,
         "saturation": app.params.saturation,
         "contrast": app.params.contrast,
@@ -96,9 +97,10 @@ async def setESPConfig():
         "aec2": app.params.aec2,
         "bpc": app.params.bpc,
         "wpc": app.params.wpc,
-        })
-    if response.status_code != 200:
-        raise HTTPException("Something went wrong")
+        }, timeout=5)
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(500, "Couldn't connect to ESP")
+    
 
 async def captureImage() -> Photo:
     print("Capturing image from ESP")
@@ -107,14 +109,17 @@ async def captureImage() -> Photo:
     #     raise HTTPException("Something went wrong")
     # bytes_image_l = response.content
     # bytes_image_r = response.content
-    response = requests.get(url=f'{url}/cam1')
-    response2 = requests.get(url=f'{url}/cam2')
-    if response.status_code != 200 or response2.status_code != 200:
-        raise HTTPException("Something went wrong")
-    bytes_image_l = response.content
-    bytes_image_r = response2.content
-    captured_photo = await fuseAndUploadImages(bytes_image_l, bytes_image_r)
-    return captured_photo
+    try:
+        response = requests.get(url=f'{url}/cam1', timeout=15)
+        response2 = requests.get(url=f'{url}/cam2', timeout=15)
+        bytes_image_l = response.content
+        bytes_image_r = response2.content
+        captured_photo = await fuseAndUploadImages(bytes_image_l, bytes_image_r)
+        return captured_photo
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(500, "Couldn't connect to ESP")
+    
+    
 
 async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Photo:
     img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_COLOR)
