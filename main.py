@@ -81,7 +81,7 @@ async def setESPConfig():
     response = requests.post(url=f'{url}/config', json={
         "brightness": app.params.brightness,
         "saturation": app.params.saturation,
-        "contrast": app.params.contrast
+        "contrast": app.params.contrast,
         "special_effect": app.params.special_effect,
         "wb_mode": app.params.wb_mode,
         "ae_level": app.params.ae_level,
@@ -102,6 +102,11 @@ async def setESPConfig():
 
 async def captureImage() -> Photo:
     print("Capturing image from ESP")
+    # response = requests.get(url=f'{url}/jpg')
+    # if response.status_code != 200:
+    #     raise HTTPException("Something went wrong")
+    # bytes_image_l = response.content
+    # bytes_image_r = response.content
     response = requests.get(url=f'{url}/cam1')
     response2 = requests.get(url=f'{url}/cam2')
     if response.status_code != 200 or response2.status_code != 200:
