@@ -2,6 +2,9 @@ import cv2 as cv
 import numpy as np
 import matlab.engine
 
+
+eng = matlab.engine.start_matlab()
+
 def stereo_fusion(left_image, right_image):
     left_gray = cv.cvtColor(left_image, cv.COLOR_BGR2GRAY)
     right_gray = cv.cvtColor(right_image, cv.COLOR_BGR2GRAY)
@@ -66,7 +69,6 @@ async def testStereo():
     cv.imwrite("images/disparity_map_after.png", result_image2)
 
 def testMatlab():
-    eng = matlab.engine.start_matlab()
     eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nr_left.jpg");
     eng.workspace['I2'] = eng.imread("images/nr_right.jpg");
@@ -74,11 +76,24 @@ def testMatlab():
     eng.imwrite(t[0], "images/rect_left.png", nargout=0);
     eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
 
+def rectImage(left, right):
+    cv.imwrite("images/nonrect_left.png", left)
+    cv.imwrite("images/nonrect_right.png", right)
+    eng = matlab.engine.start_matlab()
+    eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
+    eng.workspace['I1'] = eng.imread("images/nonrect_left.png");
+    eng.workspace['I2'] = eng.imread("images/nonrect_right.png");
+    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_12_03_2)', nargout=3)
+    eng.imwrite(t[0], "images/rect_left.png", nargout=0);
+    eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
+
+
 def testWLSStereo():
     left = cv.imread('images/rect_left.png')
     right = cv.imread('images/rect_right.png')
     wlsImage = stereoWLS(left, right)
     cv.imwrite("images/wls.png", wlsImage)
+    return wlsImage
 
 def stereoWLS(left_rect, right_rect):
     left_image = cv.cvtColor(left_rect, cv.COLOR_BGR2GRAY)
@@ -118,3 +133,7 @@ def stereoWLS(left_rect, right_rect):
     filteredImg = cv.normalize(src=filtered_disp, dst=None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8UC1)
     filteredImg_colour = cv.applyColorMap(filteredImg, cv.COLORMAP_JET)
     return filteredImg
+
+def stereoFuse(left, right):
+    rectImage(left, right)
+    return testWLSStereo()

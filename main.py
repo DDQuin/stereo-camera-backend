@@ -14,6 +14,7 @@ from stereo import (
     testStereo,
     testMatlab,
     testWLSStereo,
+    stereoFuse,
 )
 from model import (
     CameraParams,
@@ -129,7 +130,8 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
     if img_l.shape != img_r.shape:
             raise HTTPException(status_code=400,
             detail=f'images are not the same dimensions{img_l.shape} and {img_r.shape}')
-    result = stereo_fusion(img_l, img_r)
+    result = stereoFuse(img_l, img_r)
+    #result = stereo_fusion(img_l, img_r)
     _, buffer = cv.imencode('.jpg', result)
     img_l_text = base64.b64encode(bytes_image_l)
     img_r_text = base64.b64encode(bytes_image_r)
@@ -168,8 +170,6 @@ app.add_middleware(
 
 @app.on_event('startup')
 async def app_startup():
-    #testMatlab()
-    testWLSStereo()
     startSchedule()
     app.params = await getConfig()
     setSchedule(app.params.schedule, captureImage)
