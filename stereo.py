@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+import matlab.engine
 
 def stereo_fusion(left_image, right_image):
     left_gray = cv.cvtColor(left_image, cv.COLOR_BGR2GRAY)
@@ -63,3 +64,57 @@ async def testStereo():
 
     cv.imwrite("images/disparity_map_before.png", result_image1)
     cv.imwrite("images/disparity_map_after.png", result_image2)
+
+def testMatlab():
+    eng = matlab.engine.start_matlab()
+    eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
+    eng.workspace['I1'] = eng.imread("images/nr_left.jpg");
+    eng.workspace['I2'] = eng.imread("images/nr_right.jpg");
+    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_12_03_2)', nargout=3)
+    eng.imwrite(t[0], "images/rect_left.png", nargout=0);
+    eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
+
+def testWLSStereo():
+    left = cv.imread('images/rect_left.png')
+    right = cv.imread('images/rect_right.png')
+    wlsImage = stereoWLS(left, right)
+    cv.imwrite("images/wls.png", wlsImage)
+
+def stereoWLS(left_rect, right_rect):
+    left_image = cv.cvtColor(left_rect, cv.COLOR_BGR2GRAY)
+    right_image = cv.cvtColor(right_rect, cv.COLOR_BGR2GRAY)
+
+    window_size = 1
+    min_disp = 0
+    nDispFactor = 4
+    num_disp = 16*nDispFactor - min_disp
+    left_matcher = cv.StereoSGBM_create(
+        minDisparity=min_disp,
+        numDisparities=num_disp,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+        blockSize=window_size,
+        P1=8 * 3 * window_size**2,
+        P2=32 * 3 * window_size**2,
+        disp12MaxDiff=1,
+        uniquenessRatio=15,
+        speckleWindowSize=0,
+        speckleRange=2,
+        preFilterCap=63,
+        mode=cv.STEREO_SGBM_MODE_SGBM_3WAY)
+    lmbda = 8000
+    sigma = 2.5
+    right_matcher = cv.ximgproc.createRightMatcher(left_matcher);
+    left_disp = left_matcher.compute(left_image, right_image);
+    right_disp = right_matcher.compute(right_image,left_image);
+
+    # Now create DisparityWLSFilter
+    wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher);
+    wls_filter.setLambda(lmbda);
+    wls_filter.setSigmaColor(sigma);
+    filtered_disp = wls_filter.filter(left_disp, left_image, disparity_map_right=right_disp);
+
+    conf_map = wls_filter.getConfidenceMap();
+
+    # Normalize and apply a color map
+    filteredImg = cv.normalize(src=filtered_disp, dst=None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8UC1)
+    filteredImg_colour = cv.applyColorMap(filteredImg, cv.COLORMAP_JET)
+    return filteredImg

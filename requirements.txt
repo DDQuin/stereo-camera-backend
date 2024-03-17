@@ -2,7 +2,7 @@ fastapi
 uvicorn
 pytz
 apscheduler
-opencv-python-headless
+opencv-contrib-python-headless
 python-multipart
 numpy
 motor

@@ -12,6 +12,8 @@ from database import (
 from stereo import (
     stereo_fusion,
     testStereo,
+    testMatlab,
+    testWLSStereo,
 )
 from model import (
     CameraParams,
@@ -166,6 +168,8 @@ app.add_middleware(
 
 @app.on_event('startup')
 async def app_startup():
+    #testMatlab()
+    testWLSStereo()
     startSchedule()
     app.params = await getConfig()
     setSchedule(app.params.schedule, captureImage)
