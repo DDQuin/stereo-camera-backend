@@ -79,7 +79,7 @@ def testMatlab():
 def rectImage(left, right):
     cv.imwrite("images/nonrect_left.png", left)
     cv.imwrite("images/nonrect_right.png", right)
-    eng = matlab.engine.start_matlab()
+    #eng = matlab.engine.start_matlab()
     eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nonrect_left.png");
     eng.workspace['I2'] = eng.imread("images/nonrect_right.png");
@@ -132,7 +132,7 @@ def stereoWLS(left_rect, right_rect):
     # Normalize and apply a color map
     filteredImg = cv.normalize(src=filtered_disp, dst=None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8UC1)
     filteredImg_colour = cv.applyColorMap(filteredImg, cv.COLORMAP_JET)
-    return filteredImg
+    return filteredImg_colour
 
 def stereoFuse(left, right):
     rectImage(left, right)
