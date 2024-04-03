@@ -17,7 +17,9 @@ from stereo import (
     stereoFuse,
 )
 from model import (
+    BoundingBox,
     CameraParams,
+    ObjectDimensions,
     Photo,
 )
 from schedule import (
@@ -244,6 +246,13 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
                      image=str(photo['stereo'].decode()),
                      timestamp=str(photo['timestamp'])))
     return photos
+
+@app.post("/get_object_dimensions", description="Get photo from its ID")
+async def get_object_dimensions_(boundingBox: BoundingBox,id: str) -> ObjectDimensions:
+    photo = await retrieve_photo(id)
+    if not photo:
+        raise HTTPException(status_code=404, detail=f'id {id} not found')
+    return ObjectDimensions(distance = 0, width = 0, height = 0)
 
 @app.get("/healthcheck")
 def read_root():

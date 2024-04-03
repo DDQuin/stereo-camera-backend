@@ -42,3 +42,14 @@ class Photo(BaseModel):
     image: str
     left: Optional[str] = None
     right: Optional[str] = None
+
+class BoundingBox(BaseModel):
+    x1: int
+    x2: int
+    y1: int
+    y2: int
+
+class ObjectDimensions(BaseModel):
+    distance: float
+    width: float
+    height: float
