@@ -1,6 +1,9 @@
+import math
 import cv2 as cv
 import numpy as np
 import matlab.engine
+
+from model import BoundingBox, ObjectDimensions
 
 
 eng = matlab.engine.start_matlab()
@@ -91,9 +94,9 @@ def rectImage(left, right):
 def testWLSStereo():
     left = cv.imread('images/rect_left.png')
     right = cv.imread('images/rect_right.png')
-    wlsImage = stereoWLS(left, right)
+    wlsImage, disp = stereoWLS(left, right)
     cv.imwrite("images/wls.png", wlsImage)
-    return wlsImage
+    return wlsImage, disp
 
 def stereoWLS(left_rect, right_rect):
     left_image = cv.cvtColor(left_rect, cv.COLOR_BGR2GRAY)
@@ -132,8 +135,91 @@ def stereoWLS(left_rect, right_rect):
     # Normalize and apply a color map
     filteredImg = cv.normalize(src=filtered_disp, dst=None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8UC1)
     filteredImg_colour = cv.applyColorMap(filteredImg, cv.COLORMAP_JET)
-    return filteredImg_colour
+    return filteredImg_colour, filteredImg
 
 def stereoFuse(left, right):
     rectImage(left, right)
     return testWLSStereo()
+
+def getDimensionsBounding(left, right, bounding_box: BoundingBox):
+    disparity_map_rgb, disparity_map = stereoFuse(left, right)
+    baseline = 0.05  # meters
+    Focal_Lengths = [587.133398487128, 587.908794964191]
+    avgFocalLength = (Focal_Lengths[0] + Focal_Lengths[1]) / 2
+    start_point = (bounding_box.x1, bounding_box.y1)
+    end_point = (bounding_box.x2, bounding_box.y2)
+
+    img = left.copy()
+
+    # Draw the bounding box
+    cv.rectangle(img, start_point, end_point, (0, 255, 0), 2)
+
+    # Create a mask from the bounding box
+    mask = np.zeros_like(disparity_map)
+    cv.rectangle(mask, start_point, end_point, 255, -1)
+
+    # Apply mask to disparity map
+    masked_disparity = apply_mask(disparity_map, mask)
+
+    # Store coordinates of bounding box in format (top-left, top-right, bottom-right, bottom-left)
+    x_tl, y_tl = start_point
+    x_br, y_br = end_point
+    box_coordinates = [(x_tl, y_tl), (x_br, y_tl), (x_br, y_br), (x_tl, y_br)]
+
+    non_zero_elements = masked_disparity[masked_disparity != 0]  # Extract non-zero elements
+    #non_zero_elements = disparity_map
+    disparity = non_zero_elements.mean()
+    print(masked_disparity)
+    disparity_min = non_zero_elements.min()
+    disparity_max = non_zero_elements.max()
+    disparity_diff = disparity_max - disparity_min
+        
+    # Condition for line being perpedincular to the camera or not
+    if disparity_diff < 10:     
+        distance = getDistance(disparity, avgFocalLength, baseline)
+        width = getWidth(box_coordinates, distance, avgFocalLength)
+        height = getHeight(box_coordinates, distance, avgFocalLength)
+        length_est = math.sqrt(width**2 + height**2)
+        distance_min = 0
+        distance_max = 0
+        distance_diff = 0
+            
+    else:
+        distance_max = getDistance(disparity_min, avgFocalLength, baseline)
+        distance_min = getDistance(disparity_max, avgFocalLength, baseline)
+        distance_diff = distance_max - distance_min
+        width = getWidth(box_coordinates, distance_max, avgFocalLength)
+        length_est = math.sqrt(width**2 + distance_diff**2)
+        distance = 0
+        height = getHeight(box_coordinates, distance_max, avgFocalLength)
+    print(f"distance {distance} distance_max width {width*100:.2f} height {height} length {length_est}")
+    return ObjectDimensions(
+        distance = distance*100,
+        distance_max = distance_max*100,
+        distance_min = distance_min*100,
+        distance_diff = distance_diff*100,
+        width = width*100,
+        height = height*100,
+        length = length_est*100,
+        disparity_diff = disparity_diff
+        )
+     
+     
+
+def getDistance(disparity, avgFocalLength, baseline):
+    distance = (avgFocalLength) * (baseline / (disparity / 6.3))
+    return distance
+
+
+def getWidth(boxPoints, distance, avgFocalLength):
+    pixelWidth = boxPoints[1][0] - boxPoints[0][0]
+    return (distance * pixelWidth) / avgFocalLength
+
+
+def getHeight(boxPoints, distance, avgFocalLength):
+    pixelHeight = boxPoints[2][1] - boxPoints[1][1]
+    return abs((distance * pixelHeight) / avgFocalLength)
+
+def apply_mask(disparity_map, mask):
+    masked_disparity = cv.bitwise_and(disparity_map, disparity_map, mask=mask)
+    return masked_disparity

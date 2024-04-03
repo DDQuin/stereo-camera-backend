@@ -51,5 +51,10 @@ class BoundingBox(BaseModel):
 
 class ObjectDimensions(BaseModel):
     distance: float
+    distance_max: float
+    distance_min: float
+    distance_diff: float
     width: float
     height: float
+    length: float
+    disparity_diff: float

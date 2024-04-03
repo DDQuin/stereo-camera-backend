@@ -10,6 +10,7 @@ from database import (
     set_config
 )
 from stereo import (
+    getDimensionsBounding,
     stereo_fusion,
     testStereo,
     testMatlab,
@@ -132,7 +133,7 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
     if img_l.shape != img_r.shape:
             raise HTTPException(status_code=400,
             detail=f'images are not the same dimensions{img_l.shape} and {img_r.shape}')
-    result = stereoFuse(img_l, img_r)
+    result = stereoFuse(img_l, img_r)[0]
     #result = stereo_fusion(img_l, img_r)
     _, buffer = cv.imencode('.jpg', result)
     img_l_text = base64.b64encode(bytes_image_l)
@@ -248,11 +249,15 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
     return photos
 
 @app.post("/get_object_dimensions", description="Get photo from its ID")
-async def get_object_dimensions_(boundingBox: BoundingBox,id: str) -> ObjectDimensions:
+async def get_object_dimensions_(bounding_box: BoundingBox,id: str) -> ObjectDimensions:
     photo = await retrieve_photo(id)
     if not photo:
         raise HTTPException(status_code=404, detail=f'id {id} not found')
-    return ObjectDimensions(distance = 0, width = 0, height = 0)
+    bytes_image_l = base64.decodebytes(photo['left'])
+    bytes_image_r = base64.decodebytes(photo['right'])
+    img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_COLOR)
+    img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_COLOR)
+    return getDimensionsBounding(img_l, img_r, bounding_box)
 
 @app.get("/healthcheck")
 def read_root():
