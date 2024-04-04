@@ -155,6 +155,8 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
                       saturation=new_photo['saturation'],
                      contrast=new_photo['contrast'],
                      image=str(new_photo['stereo'].decode()),
+                    left=str(new_photo['left'].decode()),
+                    right=str(new_photo['right'].decode()),
                      timestamp=str(new_photo['timestamp']))
 
 ### APP SETUP ###
@@ -205,6 +207,8 @@ async def get_latest_photo() -> Photo:
                       saturation=photo['saturation'],
                      contrast=photo['contrast'],
                      image=str(photo['stereo'].decode()),
+                     left=str(photo['left'].decode()),
+                     right=str(photo['right'].decode()),
                      timestamp=str(photo['timestamp']))
     raise HTTPException(status_code=404, detail=f'id {id} not found')
 
