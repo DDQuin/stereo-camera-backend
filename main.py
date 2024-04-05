@@ -133,12 +133,17 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
     if img_l.shape != img_r.shape:
             raise HTTPException(status_code=400,
             detail=f'images are not the same dimensions{img_l.shape} and {img_r.shape}')
-    result = stereoFuse(img_l, img_r)[0]
+    result, disp, left_rect, right_rect = stereoFuse(img_l, img_r)
     #result = stereo_fusion(img_l, img_r)
     _, buffer = cv.imencode('.jpg', result)
-    img_l_text = base64.b64encode(bytes_image_l)
-    img_r_text = base64.b64encode(bytes_image_r)
+    _, left_rect_buf = cv.imencode('.jpg', left_rect)
+    _, right_rect_buf = cv.imencode('.jpg', right_rect)
+    # img_l_text = base64.b64encode(bytes_image_l)
+    # img_r_text = base64.b64encode(bytes_image_r)
+    img_l_text = base64.b64encode(left_rect_buf)
+    img_r_text = base64.b64encode(right_rect_buf)
     jpg_as_text = base64.b64encode(buffer)
+    # these writes arent needed for final
     cv.imwrite("images/img_l.png", img_l)
     cv.imwrite("images/img_r.png", img_r)
     cv.imwrite("images/stereo.png", result)

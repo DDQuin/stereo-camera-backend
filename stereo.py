@@ -95,8 +95,9 @@ def testWLSStereo():
     left = cv.imread('images/rect_left.png')
     right = cv.imread('images/rect_right.png')
     wlsImage, disp = stereoWLS(left, right)
+    # not needed
     cv.imwrite("images/wls.png", wlsImage)
-    return wlsImage, disp
+    return wlsImage, disp, left, right
 
 def stereoWLS(left_rect, right_rect):
     left_image = cv.cvtColor(left_rect, cv.COLOR_BGR2GRAY)
@@ -142,7 +143,7 @@ def stereoFuse(left, right):
     return testWLSStereo()
 
 def getDimensionsBounding(left, right, bounding_box: BoundingBox):
-    disparity_map_rgb, disparity_map = stereoFuse(left, right)
+    disparity_map_rgb, disparity_map = stereoWLS(left, right)
     baseline = 0.05  # meters
     Focal_Lengths = [587.133398487128, 587.908794964191]
     avgFocalLength = (Focal_Lengths[0] + Focal_Lengths[1]) / 2
