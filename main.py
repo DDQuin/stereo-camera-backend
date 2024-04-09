@@ -60,6 +60,7 @@ async def getConfig() -> CameraParams:
         bpc=config['bpc'],
         wpc=config['wpc'],
         sleep=config['sleep'],
+        sd_save=config['sd_save'],
                  )
     return configCam
 
@@ -83,7 +84,8 @@ async def saveConfig():
         "bpc": app.params.bpc,
         "wpc": app.params.wpc,
         "sleep": app.params.sleep,
-        "schedule": app.params.schedule
+        "schedule": app.params.schedule,
+        "sd_save": app.params.sd_save
     })
 
 async def setESPConfig():
@@ -106,15 +108,17 @@ async def setESPConfig():
         "aec2": app.params.aec2,
         "bpc": app.params.bpc,
         "wpc": app.params.wpc,
+            "sd_save": app.params.sd_save    
         }, timeout=5)
     except requests.exceptions.RequestException as e:
         raise HTTPException(500, "Couldn't connect to ESP")
     
 async def setWUCConfig():
     try:
-        requests.post(url=f'{wuc}/config', json={
-        "sleep": app.params.sleep,
-        }, timeout=5)
+        #requests.post(url=f'{wuc}/sleep', json={
+        #"sleep": app.params.sleep,
+        #}, timeout=5)
+        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}" timeout=5)
     except requests.exceptions.RequestException as e:
         raise HTTPException(500, "Couldn't connect to WUC")
 

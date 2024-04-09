@@ -21,6 +21,8 @@ class CameraParams(BaseModel):
     aec2: bool = Field(title="Aec2")
     bpc: bool = Field(title="Bpc")
     wpc: bool = Field(title="Wpc")
+    sleep: int = Field(title="Sleep time for WUC", ge=1)
+    sd_save: bool = Field(title="If saved to SD")
     schedule: List[str] = Field(title="Schedule of camera")
 
     @field_validator('schedule')
