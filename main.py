@@ -34,6 +34,7 @@ import datetime
 import requests
 import os
 import time
+import asyncio
 
 ### HELPER FUNCTIONS ###
 
@@ -57,7 +58,8 @@ async def getConfig() -> CameraParams:
         vflip=config['vflip'],
         aec2=config['aec2'],
         bpc=config['bpc'],
-        wpc=config['wpc']
+        wpc=config['wpc'],
+        sleep=config['sleep'],
                  )
     return configCam
 
@@ -80,6 +82,7 @@ async def saveConfig():
         "aec2": app.params.aec2,
         "bpc": app.params.bpc,
         "wpc": app.params.wpc,
+        "sleep": app.params.sleep,
         "schedule": app.params.schedule
     })
 
@@ -107,6 +110,13 @@ async def setESPConfig():
     except requests.exceptions.RequestException as e:
         raise HTTPException(500, "Couldn't connect to ESP")
     
+async def setWUCConfig():
+    try:
+        requests.post(url=f'{wuc}/config', json={
+        "sleep": app.params.sleep,
+        }, timeout=5)
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(500, "Couldn't connect to WUC")
 
 async def captureImage() -> Photo:
     print("Capturing image from ESP")
@@ -116,13 +126,19 @@ async def captureImage() -> Photo:
     # bytes_image_l = response.content
     # bytes_image_r = response.content
     try:
-        response = requests.get(url=f'{url}/cam1', timeout=15)
-        response2 = requests.get(url=f'{url}/cam2', timeout=15)
+        print(f'Capturing from {url}/pic')
+        response = requests.get(url=f'{url}/pic', timeout=15)
+        print("Firsst")
+        await asyncio.sleep(2)
+        print("two seconds passed")
+        response2 = requests.get(url=f'{url}/pic', timeout=15)
+        print("Second")
         bytes_image_l = response.content
         bytes_image_r = response2.content
         captured_photo = await fuseAndUploadImages(bytes_image_l, bytes_image_r)
         return captured_photo
     except requests.exceptions.RequestException as e:
+        print(e)
         raise HTTPException(500, "Couldn't connect to ESP")
     
     
@@ -167,6 +183,8 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
 ### APP SETUP ###
     
 url = os.getenv("MCC_URL", "http://localhost:8090")
+wuc = os.getenv("WUC_URL", "http://localhost:8070")
+
 app = FastAPI()
 origins = ["*"]
 
@@ -195,6 +213,7 @@ async def set_params(new_params: CameraParams) -> CameraParams:
     app.params = new_params
     setSchedule(app.params.schedule, captureImage)
     await saveConfig()
+    await setWUCConfig()
     await setESPConfig()
     return app.params
 
