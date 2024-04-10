@@ -118,7 +118,7 @@ async def setWUCConfig():
         #requests.post(url=f'{wuc}/sleep', json={
         #"sleep": app.params.sleep,
         #}, timeout=5)
-        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}" timeout=5)
+        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}", timeout=5)
     except requests.exceptions.RequestException as e:
         raise HTTPException(500, "Couldn't connect to WUC")
 
