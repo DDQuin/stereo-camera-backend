@@ -105,7 +105,7 @@ def stereoWLS(left_rect, right_rect):
 
     window_size = 1
     min_disp = 0
-    nDispFactor = 4
+    nDispFactor = 4 #
     num_disp = 16*nDispFactor - min_disp
     left_matcher = cv.StereoSGBM_create(
         minDisparity=min_disp,
@@ -119,8 +119,8 @@ def stereoWLS(left_rect, right_rect):
         speckleRange=2,
         preFilterCap=63,
         mode=cv.STEREO_SGBM_MODE_SGBM_3WAY)
-    lmbda = 8000
-    sigma = 2.5
+    lmbda = 8000 #
+    sigma = 2.5 #
     right_matcher = cv.ximgproc.createRightMatcher(left_matcher);
     left_disp = left_matcher.compute(left_image, right_image);
     right_disp = right_matcher.compute(right_image,left_image);

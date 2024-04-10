@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, UploadFile
+from timeit import default_timer as timer
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from database import (
@@ -282,6 +283,7 @@ async def get_photos(offset: int, limit: int) -> List[Photo]:
 
 @app.post("/get_object_dimensions", description="Get photo from its ID")
 async def get_object_dimensions_(bounding_box: BoundingBox,id: str) -> ObjectDimensions:
+    start = timer()
     photo = await retrieve_photo(id)
     if not photo:
         raise HTTPException(status_code=404, detail=f'id {id} not found')
@@ -289,7 +291,10 @@ async def get_object_dimensions_(bounding_box: BoundingBox,id: str) -> ObjectDim
     bytes_image_r = base64.decodebytes(photo['right'])
     img_l = cv.imdecode(np.frombuffer(bytes_image_l,np.uint8), cv.IMREAD_COLOR)
     img_r = cv.imdecode(np.frombuffer(bytes_image_r,np.uint8), cv.IMREAD_COLOR)
-    return getDimensionsBounding(img_l, img_r, bounding_box)
+    dimensions = getDimensionsBounding(img_l, img_r, bounding_box)
+    end = timer()
+    print(end-start)
+    return dimensions 
 
 @app.get("/healthcheck")
 def read_root():
