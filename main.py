@@ -12,10 +12,7 @@ from database import (
 )
 from stereo import (
     getDimensionsBounding,
-    stereo_fusion,
     testStereo,
-    testMatlab,
-    testWLSStereo,
     stereoFuse,
 )
 from model import (
@@ -25,7 +22,8 @@ from model import (
     Photo,
 )
 from schedule import (
-    startSchedule,
+    getNextTime,
+   # startSchedule,
     setSchedule,
 )
 import cv2 as cv
@@ -34,7 +32,6 @@ import base64
 import datetime
 import requests
 import os
-import time
 import asyncio
 
 ### HELPER FUNCTIONS ###
@@ -116,28 +113,44 @@ async def setESPConfig():
     
 async def setWUCConfig():
     try:
-        #requests.post(url=f'{wuc}/sleep', json={
-        #"sleep": app.params.sleep,
-        #}, timeout=5)
-        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}", timeout=5)
+        headers = {'Content-Type': 'text/plain'}
+        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}", timeout=5, headers=headers)
+#        requests.get(url=f'{wuc}/exit', timeout=5)
     except requests.exceptions.RequestException as e:
+        print(e)
         raise HTTPException(500, "Couldn't connect to WUC")
 
-async def captureImage() -> Photo:
-    print("Capturing image from ESP")
-    # response = requests.get(url=f'{url}/jpg')
-    # if response.status_code != 200:
-    #     raise HTTPException("Something went wrong")
-    # bytes_image_l = response.content
-    # bytes_image_r = response.content
+
+async def captureImageSched():
+    print("capturing image")
     try:
+        photo = await captureImage()
+    except Exception as e:
+        print("couldnt capture image")
+    seconds, dt = getNextTime(app.params.schedule)
+    print(f"wuc Sleep for {seconds - 10}")
+    print(f"next awake {dt}")
+    try:
+        requests.post(url=f'{wuc}/sleep', data=f"{seconds - 10}", timeout=5, headers=headers)
+        requests.get(url=f'{wuc}/exit', timeout=5)
+    except Exception as e:
+        print(e)
+        print("Couldnt sleep or exit")
+
+
+async def captureImage() -> Photo:
+    try:
+        # Need to take extra picture at start if sd_save is on to remove glitch photo
+        # if app.params.sd_save == True:
+        #     response = requests.get(url=f'{url}/pic', timeout=15)
+        #     await asyncio.sleep(5)
         print(f'Capturing from {url}/pic')
         response = requests.get(url=f'{url}/pic', timeout=15)
-        print("Firsst")
-        await asyncio.sleep(2)
-        print("two seconds passed")
+        print("First pic taken")
+        await asyncio.sleep(5)
+        print("five seconds passed")
         response2 = requests.get(url=f'{url}/pic', timeout=15)
-        print("Second")
+        print("Second pic taken")
         bytes_image_l = response.content
         bytes_image_r = response2.content
         captured_photo = await fuseAndUploadImages(bytes_image_l, bytes_image_r)
@@ -155,7 +168,6 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
             raise HTTPException(status_code=400,
             detail=f'images are not the same dimensions{img_l.shape} and {img_r.shape}')
     result, disp, left_rect, right_rect = stereoFuse(img_l, img_r)
-    #result = stereo_fusion(img_l, img_r)
     _, buffer = cv.imencode('.jpg', result)
     _, left_rect_buf = cv.imencode('.jpg', left_rect)
     _, right_rect_buf = cv.imencode('.jpg', right_rect)
@@ -187,8 +199,8 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
 
 ### APP SETUP ###
     
-url = os.getenv("MCC_URL", "http://localhost:8090")
-wuc = os.getenv("WUC_URL", "http://localhost:8070")
+url = os.getenv("MCC_URL", "http://192.168.45.145:19520")
+wuc = os.getenv("WUC_URL", "http://192.168.45.218:19520")
 
 app = FastAPI()
 origins = ["*"]
@@ -203,9 +215,9 @@ app.add_middleware(
 
 @app.on_event('startup')
 async def app_startup():
-    startSchedule()
+    #startSchedule()
     app.params = await getConfig()
-    setSchedule(app.params.schedule, captureImage)
+    setSchedule(app.params.schedule, captureImageSched)
 
 ### ROUTES ###
 
@@ -216,7 +228,7 @@ async def read_params() -> CameraParams:
 @app.put("/set_parameters", description="Set current parameters")
 async def set_params(new_params: CameraParams) -> CameraParams:
     app.params = new_params
-    setSchedule(app.params.schedule, captureImage)
+    setSchedule(app.params.schedule, captureImageSched)
     await saveConfig()
     await setWUCConfig()
     await setESPConfig()

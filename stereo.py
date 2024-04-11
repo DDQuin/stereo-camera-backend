@@ -6,7 +6,7 @@ import matlab.engine
 from model import BoundingBox, ObjectDimensions
 
 
-eng = matlab.engine.start_matlab()
+#eng = matlab.engine.start_matlab()
 
 def stereo_fusion(left_image, right_image):
     left_gray = cv.cvtColor(left_image, cv.COLOR_BGR2GRAY)
@@ -72,10 +72,10 @@ async def testStereo():
     cv.imwrite("images/disparity_map_after.png", result_image2)
 
 def testMatlab():
-    eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
+    eng.eval('load("stereoParams_10_04.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nr_left.jpg");
     eng.workspace['I2'] = eng.imread("images/nr_right.jpg");
-    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_12_03_2)', nargout=3)
+    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_10_04)', nargout=3)
     eng.imwrite(t[0], "images/rect_left.png", nargout=0);
     eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
 
@@ -83,10 +83,10 @@ def rectImage(left, right):
     cv.imwrite("images/nonrect_left.png", left)
     cv.imwrite("images/nonrect_right.png", right)
     #eng = matlab.engine.start_matlab()
-    eng.eval('load("stereoParams_12_03_2.mat")', nargout=0)
+    eng.eval('load("stereoParams_11_04.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nonrect_left.png");
     eng.workspace['I2'] = eng.imread("images/nonrect_right.png");
-    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_12_03_2)', nargout=3)
+    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_11_04)', nargout=3)
     eng.imwrite(t[0], "images/rect_left.png", nargout=0);
     eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
 
@@ -94,6 +94,8 @@ def rectImage(left, right):
 def testWLSStereo():
     left = cv.imread('images/rect_left.png')
     right = cv.imread('images/rect_right.png')
+    # left = cv.imread('images/left_test.png')
+    # right = cv.imread('images/right_test.png')
     wlsImage, disp = stereoWLS(left, right)
     # not needed
     cv.imwrite("images/wls.png", wlsImage)
@@ -103,9 +105,12 @@ def stereoWLS(left_rect, right_rect):
     left_image = cv.cvtColor(left_rect, cv.COLOR_BGR2GRAY)
     right_image = cv.cvtColor(right_rect, cv.COLOR_BGR2GRAY)
 
+    left_image = cv.medianBlur(left_image, 11)
+    right_image = cv.medianBlur(right_image, 11)
+
     window_size = 1
     min_disp = 0
-    nDispFactor = 4 #
+    nDispFactor = 5 #
     num_disp = 16*nDispFactor - min_disp
     left_matcher = cv.StereoSGBM_create(
         minDisparity=min_disp,
@@ -120,7 +125,7 @@ def stereoWLS(left_rect, right_rect):
         preFilterCap=63,
         mode=cv.STEREO_SGBM_MODE_SGBM_3WAY)
     lmbda = 8000 #
-    sigma = 2.5 #
+    sigma = 2.0 #
     right_matcher = cv.ximgproc.createRightMatcher(left_matcher);
     left_disp = left_matcher.compute(left_image, right_image);
     right_disp = right_matcher.compute(right_image,left_image);
@@ -131,7 +136,7 @@ def stereoWLS(left_rect, right_rect):
     wls_filter.setSigmaColor(sigma);
     filtered_disp = wls_filter.filter(left_disp, left_image, disparity_map_right=right_disp);
 
-    conf_map = wls_filter.getConfidenceMap();
+
 
     # Normalize and apply a color map
     filteredImg = cv.normalize(src=filtered_disp, dst=None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8UC1)
@@ -144,8 +149,8 @@ def stereoFuse(left, right):
 
 def getDimensionsBounding(left, right, bounding_box: BoundingBox):
     disparity_map_rgb, disparity_map = stereoWLS(left, right)
-    baseline = 0.05  # meters
-    Focal_Lengths = [587.133398487128, 587.908794964191]
+    baseline = 0.055  # meters
+    Focal_Lengths = [614.0822, 614.1323]
     avgFocalLength = (Focal_Lengths[0] + Focal_Lengths[1]) / 2
     start_point = (bounding_box.x1, bounding_box.y1)
     end_point = (bounding_box.x2, bounding_box.y2)
@@ -208,7 +213,7 @@ def getDimensionsBounding(left, right, bounding_box: BoundingBox):
      
 
 def getDistance(disparity, avgFocalLength, baseline):
-    distance = (avgFocalLength) * (baseline / (disparity / 6.3))
+    distance = (avgFocalLength) * (baseline / (disparity / 4.0))
     return distance
 
 
