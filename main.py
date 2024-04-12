@@ -77,7 +77,8 @@ async def getConfig() -> CameraParams:
         wpc=config['wpc'],
         sleep=config['sleep'],
         sd_save=config['sd_save'],
-        auto_sleep=config['auto_sleep']
+        auto_sleep=config['auto_sleep'],
+        low_light=config['low_light']
                  )
     return configCam
 
@@ -103,7 +104,8 @@ async def saveConfig():
         "sleep": app.params.sleep,
         "schedule": app.params.schedule,
         "sd_save": app.params.sd_save,
-        "auto_sleep": app.params.auto_sleep
+        "auto_sleep": app.params.auto_sleep,
+        "low_light": app.params.low_light
     })
 
 async def setESPConfig():
@@ -160,14 +162,18 @@ async def captureImageSched():
         except Exception as e:
             print(e)
             print("Couldnt sleep or exit since WUC disabled")
+    else:
+        print("Skipping sleep as autosleep is off")
 
 
 async def captureImage() -> Photo:
     try:
         # Need to take extra picture at start if sd_save is on to remove glitch photo
-        # if app.params.sd_save == True:
-        #     response = requests.get(url=f'{url}/pic', timeout=15)
-        #     await asyncio.sleep(5)
+        if app.params.low_light == True:
+            response = requests.get(url=f'{url}/pic', timeout=15)
+            await asyncio.sleep(5)
+            response = requests.get(url=f'{url}/pic', timeout=15)
+            await asyncio.sleep(5)
         print(f'Capturing from {url}/pic')
         response = requests.get(url=f'{url}/pic', timeout=15)
         print("First pic taken")
@@ -344,13 +350,20 @@ async def get_object_dimensions_(bounding_box: BoundingBox,id: str) -> ObjectDim
     return dimensions 
 
 @app.get("/wuc_sleep", description="Make WUC sleep for set time")
-async def wuc_sleep():
+async def wuc_sleep() -> datetime.datetime:
     try:
         requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}", timeout=5)
         requests.get(url=f'{wuc}/exit', timeout=5)
+        dtutc = datetime.datetime.utcnow()
+        dtutc = dtutc + datetime.timedelta(seconds=app.params.sleep)
+        app.backend.next_wakeup = dtutc
+        print(f"Next wakeup after exit is {dtutc}")
+        await saveBackendValues()
+        return dtutc
     except Exception as e:
         print(e)
         print("Couldnt sleep or exit since WUC disabled")
+        raise HTTPException(500, "Couldn't connect to ESP")
 
 
 @app.get("/healthcheck")

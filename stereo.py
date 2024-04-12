@@ -6,7 +6,7 @@ import matlab.engine
 from model import BoundingBox, ObjectDimensions
 
 
-#eng = matlab.engine.start_matlab()
+eng = matlab.engine.start_matlab()
 
 def stereo_fusion(left_image, right_image):
     left_gray = cv.cvtColor(left_image, cv.COLOR_BGR2GRAY)
@@ -181,29 +181,78 @@ def getDimensionsBounding(left, right, bounding_box: BoundingBox):
     disparity_diff = disparity_max - disparity_min
         
     # Condition for line being perpedincular to the camera or not
-    if disparity_diff < 10:     
+    if disparity_diff < 15:     
         distance = getDistance(disparity, avgFocalLength, baseline)
         width = getWidth(box_coordinates, distance, avgFocalLength)
-        height = getHeight(box_coordinates, distance, avgFocalLength)
+        height = getHeight(box_coordinates, distance, avgFocalLength, disparity_diff)
         length_est = math.sqrt(width**2 + height**2)
-        distance_min = 0
-        distance_max = 0
-        distance_diff = 0
             
     else:
-        distance_max = getDistance(disparity_min, avgFocalLength, baseline)
-        distance_min = getDistance(disparity_max, avgFocalLength, baseline)
-        distance_diff = distance_max - distance_min
-        width = getWidth(box_coordinates, distance_max, avgFocalLength)
-        length_est = math.sqrt(width**2 + distance_diff**2)
-        distance = 0
-        height = getHeight(box_coordinates, distance_max, avgFocalLength)
+            horizontal_sections = np.linspace(start_point[0], end_point[0], 6).astype(int)
+            vertical_sections = np.linspace(start_point[1], end_point[1], 6).astype(int)
+
+            section_widths = []
+            section_heights = []
+            total_width = 0
+            total_height = 0
+
+            for i in range(5):
+                for j in range(5):
+                    section_start_x = horizontal_sections[i]
+                    section_end_x = horizontal_sections[i+1]
+                    
+                    section_start_y = vertical_sections[j]
+                    section_end_y = vertical_sections[j+1]
+
+                    # Define section bounding box
+                    section_bbox = [(section_start_x, section_start_y), (section_end_x, section_end_y)]
+
+                    # Apply mask to disparity map for section
+                    section_mask = np.zeros_like(disparity_map)
+                    cv.rectangle(section_mask, section_bbox[0], section_bbox[1], 255, -1)
+                    section_masked_disparity = apply_mask(disparity_map, section_mask)
+
+                    # Calculate average disparity for section
+                    section_non_zero_elements = section_masked_disparity[section_masked_disparity != 0]
+                    section_disparity = section_non_zero_elements.mean()
+
+                    # Calculate distance for section
+                    section_distance = getDistance(section_disparity, avgFocalLength, baseline)
+
+                    # Calculate width for section
+                    section_width = getWidth(section_bbox, section_distance,avgFocalLength)
+                    section_widths.append(section_width)
+
+                    total_width += section_width
+
+                    # Calculate height for section
+                    section_height = getHeight(section_bbox, section_distance, avgFocalLength, disparity_diff)
+                    section_heights.append(section_height)
+
+                    total_height += section_height
+                    
+                    width = total_width/5
+                    height = total_height/5
+                    length_est = (math.sqrt(width**2 + height**2))
+
+                    # Display bounding box for section
+                    cv.rectangle(img, section_bbox[0], section_bbox[1], (255, 0, 0), 2)
+                    
+                    distance = 0
+        # distance_max = getDistance(disparity_min, avgFocalLength, baseline)
+        # distance_min = getDistance(disparity_max, avgFocalLength, baseline)
+        # distance_diff = distance_max - distance_min
+        # width = getWidth(box_coordinates, distance_max, avgFocalLength)
+        # length_est = math.sqrt(width**2 + distance_diff**2)
+        # distance = 0
+        # height = getHeight(box_coordinates, distance_max, avgFocalLength)
+    
     print(f"distance {distance} distance_max width {width*100:.2f} height {height} length {length_est}")
     return ObjectDimensions(
         distance = distance*100,
-        distance_max = distance_max*100,
-        distance_min = distance_min*100,
-        distance_diff = distance_diff*100,
+        distance_max = -1,
+        distance_min = -1,
+        distance_diff = -1,
         width = width*100,
         height = height*100,
         length = length_est*100,
@@ -222,9 +271,14 @@ def getWidth(boxPoints, distance, avgFocalLength):
     return (distance * pixelWidth) / avgFocalLength
 
 
-def getHeight(boxPoints, distance, avgFocalLength):
-    pixelHeight = boxPoints[2][1] - boxPoints[1][1]
+def getHeight(boxPoints, distance, avgFocalLength, disparity_diff):
+    if disparity_diff < 10: 
+        pixelHeight = boxPoints[2][1] - boxPoints[1][1]
+    else:
+        pixelHeight = boxPoints[1][1] - boxPoints[0][1]
     return abs((distance * pixelHeight) / avgFocalLength)
+   # pixelHeight = boxPoints[2][1] - boxPoints[1][1]
+    #return abs((distance * pixelHeight) / avgFocalLength)
 
 def apply_mask(disparity_map, mask):
     masked_disparity = cv.bitwise_and(disparity_map, disparity_map, mask=mask)

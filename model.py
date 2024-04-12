@@ -27,6 +27,7 @@ class CameraParams(BaseModel):
     wpc: bool = Field(title="Wpc")
     sleep: int = Field(title="Sleep time for WUC", ge=1)
     sd_save: bool = Field(title="If saved to SD")
+    low_light: bool = Field(title="Takes photo 4 times")
     auto_sleep: bool = Field(title="Auto sleep when schedule hit")
     schedule: List[str] = Field(title="Schedule of camera")
 
