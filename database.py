@@ -10,6 +10,20 @@ database = client.photos
 
 photo_collection = database.get_collection("photos_collection")
 config_collection = database.get_collection("config_collection")
+backend_collection = database.get_collection("backend_collection")
+
+async def retrieve_backend() -> dict:
+    configs = []
+    async for config in backend_collection.find():
+        configs.append(config)
+    return configs[0]
+
+async def set_backend(backend_data: dict):
+    # Delete config data
+    await backend_collection.drop()
+    config = await backend_collection.insert_one(backend_data)
+    new_config = await backend_collection.find_one({"_id": config.inserted_id})
+    return new_config
 
 # Retrieve all photos present in the d0atabase
 async def retrieve_config() -> dict:

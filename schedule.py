@@ -56,7 +56,7 @@ def setSchedule(times: List[str], function: Callable):
 def getNextTime(times: List[str]) -> (int, datetime.datetime):
     dts = []
     now = datetime.datetime.utcnow()
-    print(f"UTX TIME {now}")
+   # print(f"UTX TIME {now}")
     for time in times:
         hour_min = time.split(":")
         c = datetime.datetime(now.year, now.month, now.day, hour=int(hour_min[0]), minute=int(hour_min[1]))
@@ -64,7 +64,7 @@ def getNextTime(times: List[str]) -> (int, datetime.datetime):
         if cts - now.timestamp() < 0:
             c = c + datetime.timedelta(days=1)
         dts.append(c)
-        print(c)
+       # print(c)
         
     # get all differences with date as values 
     cloz_dict = { 

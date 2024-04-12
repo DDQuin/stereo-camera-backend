@@ -1,7 +1,11 @@
+from datetime import datetime
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing import List, Optional
 import re
+
+class BackendValues(BaseModel):
+    next_wakeup: datetime = Field(title="Timestamp since next wakeup")
 
 class CameraParams(BaseModel):
     brightness: int = Field(ge = -2, le=2, title="The brightness of the camera")
@@ -23,6 +27,7 @@ class CameraParams(BaseModel):
     wpc: bool = Field(title="Wpc")
     sleep: int = Field(title="Sleep time for WUC", ge=1)
     sd_save: bool = Field(title="If saved to SD")
+    auto_sleep: bool = Field(title="Auto sleep when schedule hit")
     schedule: List[str] = Field(title="Schedule of camera")
 
     @field_validator('schedule')

@@ -4,11 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from database import (
     add_photo,
+    retrieve_backend,
     retrieve_photo,
     retrieve_photos,
     retrieve_photo_latest,
     retrieve_config,
-    set_config
+    set_config,
+    set_backend
 )
 from stereo import (
     getDimensionsBounding,
@@ -16,6 +18,7 @@ from stereo import (
     stereoFuse,
 )
 from model import (
+    BackendValues,
     BoundingBox,
     CameraParams,
     ObjectDimensions,
@@ -35,6 +38,21 @@ import os
 import asyncio
 
 ### HELPER FUNCTIONS ###
+
+async def getBackendValues() -> BackendValues:
+    values = await retrieve_backend()
+    print(type(values['next_wakeup']))
+   # dt_object = datetime.datetime.strptime(values['next_wakeup'], '%Y-%m-%d %H:%M:%S')
+    dt_object = values['next_wakeup']
+    backend_values = BackendValues(
+        next_wakeup=dt_object
+    )
+    return backend_values
+
+async def saveBackendValues():
+    await set_backend({
+        "next_wakeup": app.backend.next_wakeup
+    })
 
 async def getConfig() -> CameraParams:
     config = await retrieve_config()
@@ -59,6 +77,7 @@ async def getConfig() -> CameraParams:
         wpc=config['wpc'],
         sleep=config['sleep'],
         sd_save=config['sd_save'],
+        auto_sleep=config['auto_sleep']
                  )
     return configCam
 
@@ -83,7 +102,8 @@ async def saveConfig():
         "wpc": app.params.wpc,
         "sleep": app.params.sleep,
         "schedule": app.params.schedule,
-        "sd_save": app.params.sd_save
+        "sd_save": app.params.sd_save,
+        "auto_sleep": app.params.auto_sleep
     })
 
 async def setESPConfig():
@@ -126,16 +146,20 @@ async def captureImageSched():
     try:
         photo = await captureImage()
     except Exception as e:
-        print("couldnt capture image")
+        print("couldnt capture image since ESP disabled")
     seconds, dt = getNextTime(app.params.schedule)
-    print(f"wuc Sleep for {seconds - 10}")
+    print(f"wuc Sleep for {seconds - 30}")
     print(f"next awake {dt}")
-    try:
-        requests.post(url=f'{wuc}/sleep', data=f"{seconds - 10}", timeout=5, headers=headers)
-        requests.get(url=f'{wuc}/exit', timeout=5)
-    except Exception as e:
-        print(e)
-        print("Couldnt sleep or exit")
+    if app.params.auto_sleep == True:
+        print("Attempt sleep as auto sleep is on")
+        try:
+            requests.post(url=f'{wuc}/sleep', data=f"{seconds - 30}", timeout=5)
+            requests.get(url=f'{wuc}/exit', timeout=5)
+            app.backend.next_wakeup = dt
+            await saveBackendValues()
+        except Exception as e:
+            print(e)
+            print("Couldnt sleep or exit since WUC disabled")
 
 
 async def captureImage() -> Photo:
@@ -217,13 +241,24 @@ app.add_middleware(
 async def app_startup():
     #startSchedule()
     app.params = await getConfig()
+    app.backend = await getBackendValues()
     setSchedule(app.params.schedule, captureImageSched)
 
 ### ROUTES ###
 
-@app.get("/parameters", description="Get current parameters")
+@app.get("/parameters", description="Get current params")
 async def read_params() -> CameraParams:
     return app.params 
+
+@app.get("/backend_values", description="Get current backend values")
+async def read_backend_values() -> BackendValues:
+    return app.backend 
+
+@app.put("/set_backend_values", description="Set current backend values")
+async def set_backend_values(new_params: BackendValues) -> BackendValues:
+    app.backend = new_params
+    await saveBackendValues()
+    return app.backend
 
 @app.put("/set_parameters", description="Set current parameters")
 async def set_params(new_params: CameraParams) -> CameraParams:
@@ -307,6 +342,16 @@ async def get_object_dimensions_(bounding_box: BoundingBox,id: str) -> ObjectDim
     end = timer()
     print(end-start)
     return dimensions 
+
+@app.get("/wuc_sleep", description="Make WUC sleep for set time")
+async def wuc_sleep():
+    try:
+        requests.post(url=f'{wuc}/sleep', data=f"{app.params.sleep}", timeout=5)
+        requests.get(url=f'{wuc}/exit', timeout=5)
+    except Exception as e:
+        print(e)
+        print("Couldnt sleep or exit since WUC disabled")
+
 
 @app.get("/healthcheck")
 def read_root():
