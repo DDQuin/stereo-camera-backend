@@ -168,7 +168,7 @@ async def captureImageSched():
 
 async def captureImage() -> Photo:
     try:
-        # Need to take extra picture at start if sd_save is on to remove glitch photo
+        # Need to take extra pictures at start if low_light is on to fix light issues
         if app.params.low_light == True:
             response = requests.get(url=f'{url}/pic', timeout=15)
             await asyncio.sleep(5)
@@ -213,7 +213,7 @@ async def fuseAndUploadImages(bytes_image_l: bytes, bytes_image_r: bytes) -> Pho
     new_photo = await add_photo({"brightness": app.params.brightness,
                 "saturation": app.params.saturation,
                 "contrast": app.params.contrast,
-                "timestamp": datetime.datetime.now(),
+                "timestamp": datetime.datetime.utcnow(),
                 "stereo": jpg_as_text,
                 "left": img_l_text,
                 "right": img_r_text,
