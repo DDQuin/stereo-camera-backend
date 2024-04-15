@@ -168,8 +168,8 @@ async def captureImageSched():
 
 async def captureImage() -> Photo:
     try:
-        # Need to take extra pictures at start if low_light is on to fix light issues
-        if app.params.low_light == True:
+        # Need to take extra pictures at start if sd_save is on to fix light issues
+        if app.params.sd_save == True:
             response = requests.get(url=f'{url}/pic', timeout=15)
             await asyncio.sleep(5)
             response = requests.get(url=f'{url}/pic', timeout=15)

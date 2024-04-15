@@ -82,7 +82,6 @@ def testMatlab():
 def rectImage(left, right):
     cv.imwrite("images/nonrect_left.png", left)
     cv.imwrite("images/nonrect_right.png", right)
-    #eng = matlab.engine.start_matlab()
     eng.eval('load("stereoParams_11_04.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nonrect_left.png");
     eng.workspace['I2'] = eng.imread("images/nonrect_right.png");
