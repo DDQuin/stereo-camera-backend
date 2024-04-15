@@ -82,10 +82,10 @@ def testMatlab():
 def rectImage(left, right):
     cv.imwrite("images/nonrect_left.png", left)
     cv.imwrite("images/nonrect_right.png", right)
-    eng.eval('load("stereoParams_11_04.mat")', nargout=0)
+    eng.eval('load("stereoParams_15_04.mat")', nargout=0)
     eng.workspace['I1'] = eng.imread("images/nonrect_left.png");
     eng.workspace['I2'] = eng.imread("images/nonrect_right.png");
-    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_11_04)', nargout=3)
+    t = eng.eval('rectifyStereoImages(I1, I2, stereoParams_15_04)', nargout=3)
     eng.imwrite(t[0], "images/rect_left.png", nargout=0);
     eng.imwrite(t[1], "images/rect_right.png", nargout=0);   
 
@@ -149,7 +149,7 @@ def stereoFuse(left, right):
 def getDimensionsBounding(left, right, bounding_box: BoundingBox):
     disparity_map_rgb, disparity_map = stereoWLS(left, right)
     baseline = 0.055  # meters
-    Focal_Lengths = [614.0822, 614.1323]
+    Focal_Lengths = [576.93, 577.044]
     avgFocalLength = (Focal_Lengths[0] + Focal_Lengths[1]) / 2
     start_point = (bounding_box.x1, bounding_box.y1)
     end_point = (bounding_box.x2, bounding_box.y2)

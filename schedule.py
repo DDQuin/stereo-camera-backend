@@ -41,7 +41,6 @@ scheduler.start()
 
 
 def setSchedule(times: List[str], function: Callable):
-    getNextTime(times)
     for job in scheduler.get_jobs():
         print(f'removing job {job}')
         job.remove()
